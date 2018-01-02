@@ -1,0 +1,8 @@
+{
+  "rpc_user":"your rpc user",
+  "rpc_pass":"your rpc password",
+  "rpc_host":"127.0.0.1:8332",
+  "enable_letsencrypt":false,
+  "host_port":"8080",
+  "theme":"uberblock-light"
+}

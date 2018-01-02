@@ -1,0 +1,20 @@
+body {
+    background: #222;
+    color: #fff;
+}
+
+.container {
+    max-width: 800px;
+}
+
+.header {
+    margin-top: 6rem;
+    text-align: center;
+}
+
+.statlist li
+{
+    display: inline;
+    list-style-type: none;
+    padding-right: 20px;
+}
