@@ -32,6 +32,12 @@ are possible parameters.
 - host_port - Port where the web page will be served, Ignored if letsencrypt is used
 - theme - Set to the folder name of the theme
 
+I recommend running uberblock with supervisor, to run uberblock simply type the following in a terminal:
+
+```
+./uberblock
+```
+
 Contribute
 ==========
 I am open to contributions, feel free to make a fork 
@@ -49,6 +55,6 @@ Donate
 
 If you find my code useful feel free to donate
 
-Donate BTC: 15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH
-Donate ETH: 0xB9Df510bE5Aaad76E558cc7BF41E6363f3944dfc
+Donate BTC: 15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH   
+Donate ETH: 0xB9Df510bE5Aaad76E558cc7BF41E6363f3944dfc   
 Donate LTC: LUQBfTqkeS4UuoF9nxsEqAVysb2ibUzbZi
