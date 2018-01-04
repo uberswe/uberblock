@@ -179,7 +179,7 @@ func UberblockRespond(w http.ResponseWriter, r *http.Request) {
 				Difficulty:fmt.Sprintf("Difficulty: %f", chainInfo.Difficulty),
 				Chain:fmt.Sprintf("Chain: %s", chainInfo.Chain),
 				VerficationProgress:fmt.Sprintf("Verification Progress: %f", chainInfo.VerificationProgress),
-				Donate:fmt.Sprintf("Donate BTC: %s", "15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH"),
+				Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 			}
 			writeToTemplate(w, td)
 		} else {
@@ -187,7 +187,7 @@ func UberblockRespond(w http.ResponseWriter, r *http.Request) {
 			td := TemplateData{
 				Title:"UberBlock.co Bitcoin Node",
 				Connect:"Connect via uberblock.co:8333",
-				Donate:fmt.Sprintf("Donate BTC: %s", "15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH"),
+				Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 			}
 			writeToTemplate(w, td)
 		}
@@ -196,7 +196,7 @@ func UberblockRespond(w http.ResponseWriter, r *http.Request) {
 		td := TemplateData{
 			Title:"UberBlock.co Bitcoin Node",
 			Connect:"Connect via uberblock.co:8333",
-			Donate:fmt.Sprintf("Donate BTC: %s", "15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH"),
+			Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 		}
 		writeToTemplate(w, td)
 	}

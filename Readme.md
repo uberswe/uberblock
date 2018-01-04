@@ -55,6 +55,6 @@ Donate
 
 If you find my code useful feel free to donate
 
-Donate BTC: 15cNb7zvWJDbZwV4xHvGyV96AtcyqUSkSH   
+Donate BTC: bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h  
 Donate ETH: 0xB9Df510bE5Aaad76E558cc7BF41E6363f3944dfc   
 Donate LTC: LUQBfTqkeS4UuoF9nxsEqAVysb2ibUzbZi
