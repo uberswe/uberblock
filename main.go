@@ -10,9 +10,13 @@ import (
 	"github.com/spf13/viper"
 	"github.com/fsnotify/fsnotify"
 	"mime"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"path"
+	"strconv"
 )
 
-var host = "127.0.0.1:8332"
+var host = "uberblock.co:8332"
 var user = ""
 var pass = ""
 var enable_letsencrypt bool
@@ -24,23 +28,24 @@ var client *rpcclient.Client
 
 type TemplateData struct {
 	Title string
-	Connect string
-	BlockCount string
-	BestBlock string
-	Difficulty string
-	Chain string
-	VerficationProgress string
+	BlockChainInfo map[string]string
 	Donate string
+}
+
+type Setting struct {
+	gorm.Model
+	CurrentBlock uint
 }
 
 func main() {
 
-	viper.SetDefault("rpc_host", "127.0.0.1:8332")
+	viper.SetDefault("rpc_host", "uberblock.co:8332")
 	viper.SetDefault("rpc_user", "")
 	viper.SetDefault("rpc_pass", "")
 	viper.SetDefault("host_port", "8080")
-	viper.SetDefault("enable_letsencrypt", true)
+	viper.SetDefault("enable_letsencrypt", false)
 	viper.SetDefault("theme", "uberblock-light")
+	viper.SetDefault("db_path", "")
 
 	viper.SetConfigName("uberblock")
 	viper.AddConfigPath("$HOME/.uberblock")   // path to look for the config file in
@@ -62,9 +67,21 @@ func main() {
 	host_port = viper.GetString("host_port")
 	enable_letsencrypt = viper.GetBool("enable_letsencrypt")
 	theme = viper.GetString("theme")
+	db_path := viper.GetString("db_path")
+	db, err := gorm.Open("sqlite3", path.Join(db_path, "database.db"))
+	if err != nil {
+		panic("failed to connect to database: " + path.Join(db_path, "database.db"))
+	}
+	defer db.Close()
 
+	// Migrate the schema
+	db.AutoMigrate(&Setting{})
+	db.AutoMigrate(&Transaction{})
+	db.AutoMigrate(&Address{})
 
-	log.Println("v0.1.1")
+	log.Println("Migrated database")
+
+	log.Println("v0.2.0")
 
 	connCfg := &rpcclient.ConnConfig{
 		Host:         host,
@@ -111,6 +128,8 @@ func main() {
 		}
 	}
 
+	//UberblockParse()
+
 	http.HandleFunc("/assets/", AssetResponse)
 	http.HandleFunc("/", UberblockRespond)
 
@@ -127,6 +146,114 @@ func main() {
 		}
 	}
 
+}
+
+/*
+ * Parses all blocks and builds database of transactions
+ */
+
+func UberblockParse() {
+	fmt.Println("Begin parsing blockchain...")
+	count := 0
+
+	db_path := viper.GetString("db_path")
+	db, err := gorm.Open("sqlite3", path.Join(db_path, "database.db"))
+	if err != nil {
+		panic("failed to connect to database: " + path.Join(db_path, "database.db"))
+	}
+	defer db.Close()
+
+	var setting Setting
+
+	db.First(&setting, 1)
+
+	if setting.ID == 0 {
+		fmt.Println("No settings, starting from first block")
+		db.Create(&Setting{CurrentBlock:0})
+		db.First(&setting, 1)
+	}
+
+
+	fmt.Println("Starting at block " + strconv.FormatInt(int64(setting.CurrentBlock), 10))
+
+	blockcount, err := client.GetBlockCount()
+	if err != nil {
+		log.Println(err)
+		connected = false
+	}
+
+	for blockcount > int64(setting.CurrentBlock) {
+		count = 0
+
+		blockhash, err := client.GetBlockHash(int64(setting.CurrentBlock))
+		if err != nil {
+			log.Println(err)
+			connected = false
+		}
+		block, err := client.GetBlock(blockhash)
+		if err != nil {
+			log.Println(err)
+			connected = false
+		}
+		for _, t := range block.Transactions {
+			txhash := t.TxHash()
+			txnOut, err := client.GetTxOut(&txhash, 0, false)
+			if err != nil {
+				log.Println(err)
+				connected = false
+			}
+			txnIn, err := client.GetRawTransaction(&txhash)
+			if err != nil {
+				log.Println(err)
+				connected = false
+			}
+			fmt.Println(txnIn.Hash().String())
+			if txnOut != nil {
+
+				var transaction Transaction
+
+				db.First(&transaction, "Hash = ?", txhash.String())
+
+				if transaction.ID == 0 {
+					db.Create(&Transaction{
+						Hash:txhash.String(),
+						Version:uint(txnOut.Version),
+						Blockhash:blockhash.String(),
+					})
+					for _, addr := range txnOut.ScriptPubKey.Addresses {
+						var address Address
+
+						db.First(&address, "Hash = ?", addr)
+						if address.ID == 0 {
+							db.Create(&Address{
+								Hash:    addr,
+								Balance: txnOut.Value,
+							})
+							db.First(&address, "Hash = ?", addr)
+						} else {
+							balance := address.Balance + txnOut.Value
+							db.Model(&address).Update("Balance", balance)
+						}
+						db.First(&address, "Hash = ?", addr)
+						db.First(&transaction, "Hash = ?", txhash.String())
+						db.Model(&address).Association("Transactions").Append(&transaction)
+					}
+				}
+
+			}
+			count++
+		}
+		if setting.CurrentBlock % 100 == 0 {
+			println("Transactions: " + strconv.FormatInt(int64(count), 10) + " Block: " + strconv.FormatInt(int64(setting.CurrentBlock), 10) + " " + blockhash.String())
+		}
+		setting.CurrentBlock++
+		db.Model(&setting).Update("CurrentBlock", setting.CurrentBlock)
+	}
+}
+
+func FloatToString(input_num float64) string {
+	// to convert a float number to a string
+	return strconv.FormatFloat(input_num, 'f', 12, 64)
 }
 
 func UberblockRespond(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +280,10 @@ func UberblockRespond(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	bcinfo := make(map[string]string)
+
+	bcinfo["Connect"] = "Connect via uberblock.co:8333"
+
 	if (connected) {
 
 		log.Printf("Client connected")
@@ -171,31 +302,37 @@ func UberblockRespond(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if (connected) {
+
+			bcinfo["BlockCount"] = fmt.Sprintf("Current block count: %d", blockCount)
+			bcinfo["BestBlock"] = fmt.Sprintf("Best block: %s", chainInfo.BestBlockHash)
+			bcinfo["Difficulty"] = fmt.Sprintf("Difficulty: %f", chainInfo.Difficulty)
+			bcinfo["Chain"] = fmt.Sprintf("Chain: %s", chainInfo.Chain)
+			bcinfo["VerficationProgress"] = fmt.Sprintf("Verification Progress: %f%", chainInfo.VerificationProgress)
+
 			td := TemplateData{
 				Title:"UberBlock.co Bitcoin Node",
-				Connect:"Connect via uberblock.co:8333",
-				BlockCount:fmt.Sprintf("Current block count: %d", blockCount),
-				BestBlock:fmt.Sprintf("Best block: %s", chainInfo.BestBlockHash),
-				Difficulty:fmt.Sprintf("Difficulty: %f", chainInfo.Difficulty),
-				Chain:fmt.Sprintf("Chain: %s", chainInfo.Chain),
-				VerficationProgress:fmt.Sprintf("Verification Progress: %f", chainInfo.VerificationProgress),
+				BlockChainInfo:bcinfo,
 				Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 			}
 			writeToTemplate(w, td)
 		} else {
 
+			bcinfo["Maintenance"] = "Currently under maintenance, email m@rkus.io for more information"
+
 			td := TemplateData{
 				Title:"UberBlock.co Bitcoin Node",
-				Connect:"Connect via uberblock.co:8333",
+				BlockChainInfo:bcinfo,
 				Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 			}
 			writeToTemplate(w, td)
 		}
 	} else {
 
+		bcinfo["Maintenance"] = "Currently under maintenance, email m@rkus.io for more information"
+
 		td := TemplateData{
 			Title:"UberBlock.co Bitcoin Node",
-			Connect:"Connect via uberblock.co:8333",
+			BlockChainInfo:bcinfo,
 			Donate:fmt.Sprintf("Donate BTC: %s", "bc1qv9ea75xq74mh3jpw2p0puk2vkkkfjqx0rtaw9h"),
 		}
 		writeToTemplate(w, td)
@@ -244,25 +381,6 @@ func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 }
 
 func GetFileContentType(path string) (string, error) {
-
 	contentType := mime.TypeByExtension(path)
-	//f, err := os.Open(path)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//defer f.Close()
-	//
-	//// Only the first 512 bytes are used to sniff the content type.
-	//buffer := make([]byte, 512)
-	//
-	//_, err = f.Read(buffer)
-	//if err != nil {
-	//	return "", err
-	//}
-	//
-	//// Use the net/http package's handy DectectContentType function. Always returns a valid
-	//// content-type by returning "application/octet-stream" if no others seemed to match.
-	//contentType := http.DetectContentType(buffer)
-
 	return contentType, nil
 }

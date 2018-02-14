@@ -19,16 +19,24 @@
 	<section class="header">
 		<h2 class="title">Uberblock - A Bitcoin Node</h2>
 		<a class="button button-primary" href="https://github.com/markustenghamn/uberblock">View Code on Github</a>
-		<p>{{.Connect}}</p>
+		{{if .BlockChainInfo.Connect }}
+        	<p>{{.BlockChainInfo.Connect}}</p>
+		{{end}}
+	{{if .BlockChainInfo.BlockCount }}
 		<div class="stats">
 			<ul id="statlist">
-				<li>{{.BlockCount}}</li>
-				<li>{{.BestBlock}}</li>
-				<li>{{.Difficulty}}</li>
-				<li>{{.Chain}}</li>
-				<li>{{.VerficationProgress}}</li>
+				<li>{{.BlockChainInfo.BlockCount}}</li>
+				<li>{{.BlockChainInfo.BestBlock}}</li>
+				<li>{{.BlockChainInfo.Difficulty}}</li>
+				<li>{{.BlockChainInfo.Chain}}</li>
+				<li>{{.BlockChainInfo.VerficationProgress}}</li>
 			</ul>
 		</div>
+	{{else}}
+	{{if .BlockChainInfo.Maintenance }}
+        <p>{{.BlockChainInfo.Maintenance}}</p>
+	{{end}}
+	{{end}}
 		<p>{{.Donate}}</p>
 	</section>
 </div>
